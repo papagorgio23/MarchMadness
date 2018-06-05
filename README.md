@@ -1,11 +1,7 @@
-<<<<<<< HEAD
----
-title: "March Madness"
-author: "Jason Lee"
-date: "3/12/2018"
-output: html_document
----
 
+
+# March Madness
+Predicting 2018 March Madness Basketball games
 
 
 *** 
@@ -618,6 +614,5 @@ kable(all.chances.df)
 |Marshall       |11.02%  |0.22%   |0%     |0%     |0%     |0%     |
 
 =======
-# MarchMadness
-Predicting 2018 March Madness Basketball games
->>>>>>> origin/master
+
+
