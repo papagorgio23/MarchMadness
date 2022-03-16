@@ -11,17 +11,15 @@
 ###########################
 ## Set working directory ##
 ###########################
-setwd("~/Desktop/R Script/Basketball/MarchMadness/")
+
 
 ##############################
 ## Load necessary libraries ## --------------------------------------------------------------------------
 ##############################
-library(PlayerRatings)
-library(knitr)
-library(data.table)
-library(dplyr)
-library(tidyverse)
-library(magrittr)
+library("here")
+library("PlayerRatings")
+library("knitr")
+library("tidyverse")
 
 ##############################
 ## Load necessary Datafiles ## --------------------------------------------------------------------------
@@ -35,24 +33,25 @@ library(magrittr)
 
 
 # gets seeding info
-NCAATourneySeeds2018 <- fread('Data/NCAATourneySeeds.csv')
-NCAATourneySeeds2018 %<>% filter(Season == 2018)
-seeds <- NCAATourneySeeds2018 %>% 
+seeds <- read_csv('Data/MNCAATourneySeeds.csv') %>% # data from https://www.kaggle.com/c/mens-march-mania-2022/data
+  filter(Season == 2022) %>% 
   select(TeamID, Season, Seed) %>%
-  mutate(seed_n = str_sub(Seed, 2, -1),
-         seed_playin = str_sub(Seed, 4),
-         seed_n = as.numeric(str_replace_all(seed_n, "[a-z]", "")),
-         seed_region = str_sub(Seed, 1, 1),
-         Seed = str_sub(Seed, 1, 3))
+  mutate(
+    seed_n = str_sub(Seed, 2, -1),
+    seed_playin = str_sub(Seed, 4),
+    seed_n = as.numeric(str_replace_all(seed_n, "[a-z]", "")), 
+    seed_region = str_sub(Seed, 1, 1),
+    Seed = str_sub(Seed, 1, 3)
+  )
 
 # gets team info
-teams <- fread('Data/Teams.csv') %>% 
+teams <- read_csv('Data/MTeams.csv') %>% # data from https://www.kaggle.com/c/mens-march-mania-2022/data
   select(TeamID, TeamName) %>%
   inner_join(seeds, by = "TeamID") %>% 
   select(TeamID, TeamName, Seed)
 
 # gets the predicted results for previous project
-MarchMadness <- fread('Data/MarchMadness.csv')
+MarchMadness <- read_csv('Data/MarchMadness2022.csv') # data from A.I. Sports and https://www.kaggle.com/c/mens-march-mania-2022/data
 
 
 
@@ -68,7 +67,7 @@ set.seed(1234)
 simulation.results <- c()
 
 # Set number of simulations at 15,000
-num_sims = 15000
+num_sims = 1000
 i = 1
 
 
@@ -79,8 +78,6 @@ i = 1
 #####                         #####
 ###################################
 
-## convert_pct
-convert_pct <- function(x)paste(round(100*x, 2), "%", sep="")
 
 ## simulate play in game
 simulate.playin.game <- function(team1, team2){
@@ -91,7 +88,10 @@ simulate.playin.game <- function(team1, team2){
   }
   
   # Extract Probabilities for each team in the matchup
-  p.1.2 <- (MarchMadness[MarchMadness$Team1 == team1 & MarchMadness$Team2 == team2, "pred"][[1]])/100
+  p.1.2 <- MarchMadness %>% 
+    filter(Team1 == team1,
+           Team2 == team2) %>% 
+    pull(pred)
   p.2.1 <- 1 - p.1.2
   
   # simulate Game
@@ -109,17 +109,24 @@ simulate.playin.game <- function(team1, team2){
 ## simulate regular game
 simulate.game <- function(team1seed, team2seed){
   
-  team1 <- tourney.seeds[tourney.seeds$Seed == team1seed, "TeamID"]
-  team2 <- tourney.seeds[tourney.seeds$Seed == team2seed, "TeamID"]
+  team1 <- tourney.seeds %>% 
+    filter(Seed == team1seed) %>% 
+    pull(TeamID)
+  team2 <- tourney.seeds %>% 
+    filter(Seed == team2seed) %>% 
+    pull(TeamID)
   
   if(team1 > team2){
-    tmp <- team1
+    tmp   <- team1
     team1 <- team2
     team2 <- tmp
   }
   
   # Extract Probabilities for each team in the matchup
-  p.1.2 <- (MarchMadness[MarchMadness$Team1 == team1 & MarchMadness$Team2 == team2, "pred"][[1]])/100
+  p.1.2 <- MarchMadness %>% 
+    filter(Team1 == team1,
+           Team2 == team2) %>% 
+    pull(pred)
   p.2.1 <- 1 - p.1.2
   
   
@@ -127,9 +134,13 @@ simulate.game <- function(team1seed, team2seed){
   game.result <- sample(c(team1, team2), size = 1, prob = c(p.1.2, p.2.1), replace=TRUE)
   
   if (game.result == team1){ 
-    winner <- tourney.seeds[tourney.seeds$TeamID == team1, "Seed"]
+    winner <- tourney.seeds %>% 
+      filter(TeamID == team1) %>% 
+      pull("Seed")
   } else {
-    winner <- tourney.seeds[tourney.seeds$TeamID == team2, "Seed"]
+    winner <- tourney.seeds %>% 
+      filter(TeamID == team2) %>% 
+      pull("Seed")
   }
   # return the winner
   winner
@@ -160,12 +171,13 @@ while (i <= num_sims) {
   play.seeds <- unique(play.teams$Seed)
   
   # play in games
-  for(Z16 in play.seeds) {
-    play.1.2 <- play.teams %>% filter(Seed == Z16) %>% select(TeamID)
-    team1 <- play.1.2[1,]
-    team2 <- play.1.2[2,]
+  for(seeding in play.seeds) {
+    play.1.2 <- play.teams %>% filter(Seed == seeding) %>% select(TeamID)
+    team1 <- play.1.2$TeamID[1]
+    team2 <- play.1.2$TeamID[2]
     loser <- simulate.playin.game(team1, team2)
-    tourney.seeds %<>% filter(TeamID != loser)
+    tourney.seeds <- tourney.seeds %>% 
+      filter(TeamID != loser)
   }
   
   
@@ -532,7 +544,7 @@ all.chances.df$Final4 <- ifelse(is.na(all.chances.df$Final4), 0, all.chances.df$
 all.chances.df$Finals <- ifelse(is.na(all.chances.df$Finals), 0, all.chances.df$Finals)
 all.chances.df$Champs <- ifelse(is.na(all.chances.df$Champs), 0, all.chances.df$Champs)
 
-all.chances.df[,2:7] <- sapply(all.chances.df[,2:7], convert_pct)
+all.chances.df[,2:7] <- sapply(all.chances.df[,2:7], scales::percent)
 
 # get team names
 all.chances.df %<>% 
