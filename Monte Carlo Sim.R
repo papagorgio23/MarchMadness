@@ -556,7 +556,7 @@ all.chances.df %<>%
 kable(all.chances.df)
 
 # Write to a file
-output_filename <- "MarchMadness_probs_2022.csv"
-write.csv(all.chances.df, output_filename, row.names=FALSE)
+output_filename <- "Data/MarchMadness_probs_2022.csv"
+write_csv(all.chances.df, output_filename)
 
 
