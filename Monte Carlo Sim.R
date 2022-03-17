@@ -20,6 +20,7 @@ library("here")
 library("PlayerRatings")
 library("knitr")
 library("tidyverse")
+library("tictoc")
 
 ##############################
 ## Load necessary Datafiles ## --------------------------------------------------------------------------
@@ -67,7 +68,7 @@ set.seed(1234)
 simulation.results <- c()
 
 # Set number of simulations at 15,000
-num_sims = 1000
+num_sims = 5000
 i = 1
 
 
@@ -149,7 +150,6 @@ simulate.game <- function(team1seed, team2seed){
 
 ## chance.df
 chance.df <- function(series){
-  
   tbl <- table(sim.results.df[ , series])
   df <- data.frame(team = names(tbl), chance = as.numeric(tbl)/sum(tbl))
   df <- df[order(df$chance, decreasing=TRUE), ]
@@ -164,7 +164,7 @@ chance.df <- function(series){
 ###############################
 
 
-
+tictoc::tic()
 while (i <= num_sims) {
   tourney.seeds <- seeds
   play.teams <- seeds %>% filter(seed_playin == "a" | seed_playin == "b")
@@ -360,7 +360,7 @@ while (i <= num_sims) {
   
   i <- i + 1 
 }
-
+tictoc::toc() # 5796.496 sec elapsed for 5,000 sims
 
 
 # Results
@@ -556,7 +556,7 @@ all.chances.df %<>%
 kable(all.chances.df)
 
 # Write to a file
-output_filename <- "MarchMadness_probs_2018.csv"
+output_filename <- "MarchMadness_probs_2022.csv"
 write.csv(all.chances.df, output_filename, row.names=FALSE)
 
 
