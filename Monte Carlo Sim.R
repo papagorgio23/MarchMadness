@@ -68,7 +68,7 @@ set.seed(1234)
 simulation.results <- c()
 
 # Set number of simulations at 15,000
-num_sims = 5000
+num_sims = 7000
 i = 1
 
 
@@ -358,6 +358,8 @@ while (i <= num_sims) {
   
   simulation.results <- c(simulation.results, results.all)
   
+  if( i %% 100 == 0 ) cat(paste("Simulation", i, "complete\n"))
+  
   i <- i + 1 
 }
 tictoc::toc() # 5796.496 sec elapsed for 5,000 sims
@@ -556,7 +558,7 @@ all.chances.df %<>%
 kable(all.chances.df)
 
 # Write to a file
-output_filename <- "Data/MarchMadness_probs_2022.csv"
+output_filename <- "Data/MarchMadness_probs_2022a.csv"
 write_csv(all.chances.df, output_filename)
 
 
