@@ -1,7 +1,7 @@
 
 
 # March Madness
-Predicting 2018 March Madness Basketball games
+Predicting 2022 March Madness Basketball games
 
 
 *** 
@@ -24,7 +24,7 @@ library(magrittr)
 
 ### Load Data
 
-I have already created a predicited probability for each team in the tournament for a kaggle competition.  
+I have already created a predicted probability for each team in the tournament for a kaggle competition.  
 
 We will load those results plus a few of the data files provided in the competition.
 
@@ -32,24 +32,25 @@ We will load those results plus a few of the data files provided in the competit
 
 ```r
 # gets seeding info
-NCAATourneySeeds2018 <- fread('Data/NCAATourneySeeds.csv')
-NCAATourneySeeds2018 %<>% filter(Season == 2018)
-seeds <- NCAATourneySeeds2018 %>% 
+seeds <- read_csv('Data/MNCAATourneySeeds.csv') %>% # data from https://www.kaggle.com/c/mens-march-mania-2022/data
+  filter(Season == 2022) %>% 
   select(TeamID, Season, Seed) %>%
-  mutate(seed_n = str_sub(Seed, 2, -1),
-         seed_playin = str_sub(Seed, 4),
-         seed_n = as.numeric(str_replace_all(seed_n, "[a-z]", "")),
-         seed_region = str_sub(Seed, 1, 1),
-         Seed = str_sub(Seed, 1, 3))
+  mutate(
+    seed_n = str_sub(Seed, 2, -1),
+    seed_playin = str_sub(Seed, 4),
+    seed_n = as.numeric(str_replace_all(seed_n, "[a-z]", "")), 
+    seed_region = str_sub(Seed, 1, 1),
+    Seed = str_sub(Seed, 1, 3)
+  )
 
 # gets team info
-teams <- fread('Data/Teams.csv') %>% 
+teams <- read_csv('Data/MTeams.csv') %>% # data from https://www.kaggle.com/c/mens-march-mania-2022/data
   select(TeamID, TeamName) %>%
   inner_join(seeds, by = "TeamID") %>% 
   select(TeamID, TeamName, Seed)
 
 # gets the predicted results for previous project
-MarchMadness <- fread('Data/MarchMadness.csv')
+MarchMadness <- read_csv('Data/MarchMadness2022.csv') # data from A.I. Sports and https://www.kaggle.com/c/mens-march-mania-2022/data
 ```
 
 
@@ -59,9 +60,6 @@ There are several functions we have to write in order to perform the simulation.
 
 
 ```r
-## convert_pct
-convert_pct <- function(x)paste(round(100*x, 2), "%", sep="")
-
 ## simulate play in game
 simulate.playin.game <- function(team1, team2){
   if(team1 > team2){
@@ -71,7 +69,10 @@ simulate.playin.game <- function(team1, team2){
   }
   
   # Extract Probabilities for each team in the matchup
-  p.1.2 <- (MarchMadness[MarchMadness$Team1 == team1 & MarchMadness$Team2 == team2, "pred"][[1]])/100
+  p.1.2 <- MarchMadness %>% 
+    filter(Team1 == team1,
+           Team2 == team2) %>% 
+    pull(pred)
   p.2.1 <- 1 - p.1.2
   
   # simulate Game
@@ -89,17 +90,24 @@ simulate.playin.game <- function(team1, team2){
 ## simulate regular game
 simulate.game <- function(team1seed, team2seed){
   
-  team1 <- tourney.seeds[tourney.seeds$Seed == team1seed, "TeamID"]
-  team2 <- tourney.seeds[tourney.seeds$Seed == team2seed, "TeamID"]
+  team1 <- tourney.seeds %>% 
+    filter(Seed == team1seed) %>% 
+    pull(TeamID)
+  team2 <- tourney.seeds %>% 
+    filter(Seed == team2seed) %>% 
+    pull(TeamID)
   
   if(team1 > team2){
-    tmp <- team1
+    tmp   <- team1
     team1 <- team2
     team2 <- tmp
   }
   
   # Extract Probabilities for each team in the matchup
-  p.1.2 <- (MarchMadness[MarchMadness$Team1 == team1 & MarchMadness$Team2 == team2, "pred"][[1]])/100
+  p.1.2 <- MarchMadness %>% 
+    filter(Team1 == team1,
+           Team2 == team2) %>% 
+    pull(pred)
   p.2.1 <- 1 - p.1.2
   
   
@@ -107,9 +115,13 @@ simulate.game <- function(team1seed, team2seed){
   game.result <- sample(c(team1, team2), size = 1, prob = c(p.1.2, p.2.1), replace=TRUE)
   
   if (game.result == team1){ 
-    winner <- tourney.seeds[tourney.seeds$TeamID == team1, "Seed"]
+    winner <- tourney.seeds %>% 
+      filter(TeamID == team1) %>% 
+      pull("Seed")
   } else {
-    winner <- tourney.seeds[tourney.seeds$TeamID == team2, "Seed"]
+    winner <- tourney.seeds %>% 
+      filter(TeamID == team2) %>% 
+      pull("Seed")
   }
   # return the winner
   winner
@@ -118,7 +130,6 @@ simulate.game <- function(team1seed, team2seed){
 
 ## chance.df
 chance.df <- function(series){
-  
   tbl <- table(sim.results.df[ , series])
   df <- data.frame(team = names(tbl), chance = as.numeric(tbl)/sum(tbl))
   df <- df[order(df$chance, decreasing=TRUE), ]
@@ -135,29 +146,31 @@ chance.df <- function(series){
 set.seed(1234)
 simulation.results <- c()
 
-# Set number of simulations at 15,000
-num_sims = 15000
+# Set number of simulations at 5,000
+num_sims = 5000
 i = 1
 ```
 
 ## Simulate Tourney
 
-Here's where the magic happens.
+Here's where the magic happens. (5,000 Sims can take up to 90 mins... very slow but I didn't have time to fix this)
 
 
 ```r
+tictoc::tic()
 while (i <= num_sims) {
   tourney.seeds <- seeds
   play.teams <- seeds %>% filter(seed_playin == "a" | seed_playin == "b")
   play.seeds <- unique(play.teams$Seed)
   
   # play in games
-  for(Z16 in play.seeds) {
-    play.1.2 <- play.teams %>% filter(Seed == Z16) %>% select(TeamID)
-    team1 <- play.1.2[1,]
-    team2 <- play.1.2[2,]
+  for(seeding in play.seeds) {
+    play.1.2 <- play.teams %>% filter(Seed == seeding) %>% select(TeamID)
+    team1 <- play.1.2$TeamID[1]
+    team2 <- play.1.2$TeamID[2]
     loser <- simulate.playin.game(team1, team2)
-    tourney.seeds %<>% filter(TeamID != loser)
+    tourney.seeds <- tourney.seeds %>% 
+      filter(TeamID != loser)
   }
   
   
@@ -340,6 +353,7 @@ while (i <= num_sims) {
   
   i <- i + 1 
 }
+tictoc::toc() # 5796.496 sec elapsed for 5,000 sims
 ```
 
 ### Process Results
@@ -541,77 +555,76 @@ kable(all.chances.df)
 ```
 
 
-
-|TeamName       |Round32 |Sweet16 |Elite8 |Final4 |Finals |Champs |
-|:--------------|:-------|:-------|:------|:------|:------|:------|
-|Kansas         |98.69%  |88.69%  |71.55% |57.89% |36.19% |23.79% |
-|Virginia       |97%     |85.56%  |69.99% |52.16% |38.43% |19.11% |
-|West Virginia  |92.38%  |73%     |43.8%  |33.69% |21.59% |15.01% |
-|Villanova      |97.79%  |82.65%  |47.47% |31.43% |16.21% |10.46% |
-|North Carolina |98.33%  |69.37%  |61.27% |42.39% |19.69% |7.61%  |
-|Gonzaga        |92.02%  |77.83%  |62.61% |32.94% |15.42% |6.1%   |
-|Texas Tech     |94.77%  |58.43%  |42.07% |15.77% |7.25%  |3.81%  |
-|Cincinnati     |91.77%  |61.63%  |44.93% |18.81% |10.08% |3.57%  |
-|Florida        |77.52%  |36.69%  |23.06% |8.29%  |3.55%  |1.6%   |
-|Rhode Island   |74.64%  |38.35%  |26.23% |8.17%  |3.17%  |1.36%  |
-|Duke           |94.99%  |53.07%  |31.76% |10.58% |3.23%  |1.28%  |
-|Arkansas       |50.57%  |40.97%  |18.83% |5.71%  |2.47%  |1.05%  |
-|Kentucky       |85.18%  |60.7%   |18.03% |9.05%  |3.22%  |0.75%  |
-|Auburn         |90.87%  |61.27%  |15.83% |8.08%  |2.15%  |0.75%  |
-|Texas          |50.24%  |23.13%  |15.85% |5.25%  |2.65%  |0.64%  |
-|TCU            |79.06%  |66.85%  |29.85% |8.25%  |1.81%  |0.59%  |
-|Tennessee      |88.26%  |61.21%  |22.63% |6.27%  |2.77%  |0.57%  |
-|Xavier         |91.41%  |59.87%  |16.73% |6.85%  |1.58%  |0.33%  |
-|Clemson        |76.04%  |31.24%  |7.61%  |3.54%  |0.98%  |0.32%  |
-|Ohio St        |84.57%  |18.73%  |10.52% |4%     |0.87%  |0.17%  |
-|Arizona        |58.31%  |22.15%  |4.48%  |2.05%  |0.67%  |0.14%  |
-|Houston        |68.52%  |40.2%   |9.07%  |3.31%  |0.81%  |0.12%  |
-|Nevada         |49.76%  |13.59%  |7.68%  |2.11%  |0.73%  |0.11%  |
-|Texas A&M      |70.87%  |22.03%  |11.81% |3.91%  |0.82%  |0.11%  |
-|Michigan       |65.23%  |33.89%  |9.42%  |2.83%  |0.71%  |0.09%  |
-|Creighton      |34.83%  |5.76%   |2.29%  |0.91%  |0.26%  |0.07%  |
-|Purdue         |91.12%  |29.92%  |7.45%  |1.51%  |0.35%  |0.07%  |
-|Alabama        |63.91%  |13.41%  |3.14%  |0.97%  |0.2%   |0.07%  |
-|Kansas St      |65.17%  |8.39%   |3.37%  |1.27%  |0.37%  |0.05%  |
-|Florida St     |56.19%  |21.83%  |6.17%  |1.26%  |0.2%   |0.05%  |
-|Arizona St     |20.94%  |16.38%  |6.34%  |1.44%  |0.17%  |0.05%  |
-|Syracuse       |20.94%  |16.38%  |6.34%  |1.44%  |0.17%  |0.05%  |
-|Miami FL       |65.02%  |29.32%  |7.71%  |1.5%   |0.28%  |0.04%  |
-|Butler         |49.43%  |28.76%  |6.59%  |1.07%  |0.2%   |0.04%  |
-|Seton Hall     |68.39%  |6.97%   |2.67%  |0.83%  |0.09%  |0.04%  |
-|Wichita St     |88.98%  |23%     |3.79%  |0.88%  |0.15%  |0.03%  |
-|NC State       |31.61%  |3.95%   |1.65%  |0.42%  |0.06%  |0.01%  |
-|Virginia Tech  |36.09%  |3.63%   |1.09%  |0.23%  |0.05%  |0.01%  |
-|Murray St      |7.62%   |3.78%   |0.7%   |0.14%  |0.03%  |0.01%  |
-|Providence     |29.13%  |8.44%   |4.11%  |1.05%  |0.14%  |0.01%  |
-|Buffalo        |41.69%  |9.73%   |1.21%  |0.42%  |0.08%  |0.01%  |
-|Oklahoma       |25.36%  |8.15%   |3.07%  |0.45%  |0.05%  |0.01%  |
-|St Bonaventure |22.48%  |4.28%   |1.87%  |0.3%   |0.04%  |0.01%  |
-|UCLA           |22.48%  |4.28%   |1.87%  |0.3%   |0.04%  |0.01%  |
-|Montana        |34.77%  |15.3%   |2.06%  |0.51%  |0.07%  |0%     |
-|San Diego St   |31.48%  |10.61%  |2.22%  |0.33%  |0.06%  |0%     |
-|Missouri       |43.81%  |16.84%  |2.97%  |0.45%  |0.05%  |0%     |
-|Davidson       |14.82%  |7.43%   |0.61%  |0.14%  |0.02%  |0%     |
-|S Dakota St    |15.43%  |1.53%   |0.45%  |0.09%  |0.01%  |0%     |
-|Michigan St    |49%     |8.75%   |1.37%  |0.07%  |0.01%  |0%     |
-|UNC Greensboro |7.98%   |1.91%   |0.47%  |0.1%   |0.01%  |0%     |
-|New Mexico St  |23.96%  |6.2%    |0.59%  |0.14%  |0%     |0%     |
-|Bucknell       |51%     |8.02%   |1.31%  |0.11%  |0%     |0%     |
-|Georgia St     |8.23%   |1.64%   |0.37%  |0.03%  |0%     |0%     |
-|Loyola-Chicago |34.98%  |6.97%   |0.71%  |0.02%  |0%     |0%     |
-|Wright St      |11.74%  |2.51%   |0.12%  |0.01%  |0%     |0%     |
-|Iona           |5.01%   |0.43%   |0.07%  |0.01%  |0%     |0%     |
-|Col Charleston |9.13%   |1.29%   |0.06%  |0.01%  |0%     |0%     |
-|Penn           |1.31%   |0.39%   |0.04%  |0.01%  |0%     |0%     |
-|SF Austin      |5.23%   |0.59%   |0.11%  |0%     |0%     |0%     |
-|NC Central     |8.59%   |1.46%   |0.07%  |0%     |0%     |0%     |
-|TX Southern    |8.59%   |1.46%   |0.07%  |0%     |0%     |0%     |
-|Lipscomb       |1.67%   |0.17%   |0.03%  |0%     |0%     |0%     |
-|CS Fullerton   |8.88%   |0.35%   |0.02%  |0%     |0%     |0%     |
-|UMBC           |3%      |0.29%   |0.02%  |0%     |0%     |0%     |
-|Long Island    |2.21%   |0.31%   |0%     |0%     |0%     |0%     |
-|Radford        |2.21%   |0.31%   |0%     |0%     |0%     |0%     |
-|Marshall       |11.02%  |0.22%   |0%     |0%     |0%     |0%     |
+|TeamName        |Round32 |Sweet16 |Elite8  |Final4  |Finals  |Champs  |
+|:---------------|:-------|:-------|:-------|:-------|:-------|:-------|
+|Gonzaga         |97.420% |87.540% |71.740% |55.640% |41.680% |30.420% |
+|Villanova       |93.500% |71.420% |49.640% |30.320% |19.640% |9.720%  |
+|Kentucky        |93.320% |70.700% |37.980% |24.080% |10.420% |5.560%  |
+|Iowa            |91.260% |68.440% |42.080% |25.520% |12.780% |5.420%  |
+|Arizona         |92.980% |64.220% |36.960% |18.180% |10.580% |5.340%  |
+|Texas Tech      |86.640% |66.980% |47.380% |18.040% |10.140% |5.320%  |
+|Baylor          |92.020% |64.940% |41.960% |20.920% |9.320%  |4.800%  |
+|Wisconsin       |87.640% |60.480% |41.420% |23.000% |11.720% |4.580%  |
+|Tennessee       |86.720% |61.880% |28.580% |15.760% |8.740%  |3.920%  |
+|Purdue          |90.780% |52.040% |29.520% |18.180% |7.300%  |3.760%  |
+|Illinois        |88.340% |51.660% |30.100% |13.980% |7.700%  |3.440%  |
+|Kansas          |92.440% |65.920% |35.800% |19.880% |8.580%  |3.080%  |
+|Texas           |67.980% |36.500% |19.840% |11.940% |4.600%  |2.280%  |
+|Auburn          |88.360% |71.400% |33.040% |14.000% |5.300%  |1.940%  |
+|Houston         |85.260% |42.480% |19.480% |9.280%  |5.040%  |1.740%  |
+|Connecticut     |86.860% |60.660% |17.780% |9.060%  |3.880%  |1.540%  |
+|Duke            |84.920% |51.320% |23.520% |7.880%  |3.280%  |1.300%  |
+|UCLA            |79.800% |45.620% |21.840% |8.700%  |2.340%  |0.880%  |
+|Michigan        |73.200% |27.260% |8.860%  |4.560%  |2.420%  |0.860%  |
+|St Mary's CA    |65.200% |34.660% |17.560% |6.280%  |2.160%  |0.740%  |
+|LSU             |68.260% |28.140% |15.240% |6.740%  |2.080%  |0.620%  |
+|Seton Hall      |55.760% |22.200% |9.440%  |3.160%  |1.500%  |0.580%  |
+|Ohio St         |63.640% |18.640% |7.660%  |2.900%  |1.120%  |0.360%  |
+|Alabama         |51.180% |16.860% |8.660%  |1.880%  |0.620%  |0.200%  |
+|Providence      |62.300% |20.840% |8.320%  |3.700%  |0.940%  |0.180%  |
+|San Francisco   |43.260% |13.060% |4.020%  |1.540%  |0.500%  |0.160%  |
+|Notre Dame      |48.820% |12.440% |5.720%  |1.280%  |0.440%  |0.120%  |
+|Rutgers         |48.820% |12.440% |5.720%  |1.280%  |0.440%  |0.120%  |
+|Virginia Tech   |32.020% |10.120% |3.400%  |1.300%  |0.380%  |0.120%  |
+|Arkansas        |52.440% |19.000% |3.360%  |1.160%  |0.340%  |0.120%  |
+|San Diego St    |63.740% |23.600% |8.600%  |3.400%  |0.760%  |0.100%  |
+|Michigan St     |61.760% |28.640% |8.340%  |1.900%  |0.560%  |0.100%  |
+|Indiana         |34.800% |15.040% |5.240%  |1.740%  |0.400%  |0.100%  |
+|Wyoming         |34.800% |15.040% |5.240%  |1.740%  |0.400%  |0.100%  |
+|Murray St       |56.740% |15.140% |4.920%  |2.020%  |0.320%  |0.100%  |
+|Vermont         |47.560% |16.920% |2.440%  |0.740%  |0.240%  |0.080%  |
+|Colorado St     |26.800% |8.860%  |2.400%  |0.640%  |0.180%  |0.080%  |
+|Iowa St         |31.740% |8.840%  |4.300%  |1.260%  |0.240%  |0.060%  |
+|North Carolina  |50.260% |14.500% |4.740%  |1.140%  |0.220%  |0.060%  |
+|Marquette       |49.740% |18.440% |7.380%  |1.940%  |0.380%  |0.040%  |
+|Davidson        |38.240% |17.120% |4.940%  |0.920%  |0.180%  |0.040%  |
+|Boise St        |50.540% |7.380%  |2.640%  |0.860%  |0.180%  |0.040%  |
+|Memphis         |49.460% |4.660%  |1.780%  |0.460%  |0.100%  |0.040%  |
+|S Dakota St     |37.700% |8.600%  |2.660%  |0.760%  |0.120%  |0.020%  |
+|Loyola-Chicago  |36.360% |8.840%  |2.520%  |0.480%  |0.100%  |0.020%  |
+|UAB             |14.740% |3.080%  |0.600%  |0.080%  |0.020%  |0.020%  |
+|TCU             |44.240% |11.640% |2.840%  |0.520%  |0.200%  |0.000%  |
+|Miami FL        |62.720% |16.800% |3.800%  |0.880%  |0.080%  |0.000%  |
+|Creighton       |36.260% |8.940%  |2.120%  |0.540%  |0.080%  |0.000%  |
+|Longwood        |13.280% |2.000%  |0.240%  |0.120%  |0.060%  |0.000%  |
+|Colgate         |12.360% |2.540%  |0.500%  |0.120%  |0.020%  |0.000%  |
+|Montana St      |13.360% |3.720%  |1.060%  |0.100%  |0.020%  |0.000%  |
+|Akron           |20.200% |4.680%  |0.780%  |0.160%  |0.000%  |0.000%  |
+|USC             |37.280% |6.680%  |1.080%  |0.080%  |0.000%  |0.000%  |
+|Jacksonville St |11.640% |5.120%  |0.620%  |0.080%  |0.000%  |0.000%  |
+|CS Fullerton    |15.080% |2.920%  |0.380%  |0.040%  |0.000%  |0.000%  |
+|New Mexico St   |13.140% |3.420%  |0.220%  |0.040%  |0.000%  |0.000%  |
+|Yale            |9.220%  |1.340%  |0.200%  |0.040%  |0.000%  |0.000%  |
+|Norfolk St      |7.980%  |2.120%  |0.500%  |0.020%  |0.000%  |0.000%  |
+|Chattanooga     |11.660% |2.780%  |0.400%  |0.020%  |0.000%  |0.000%  |
+|Richmond        |8.740%  |2.120%  |0.240%  |0.020%  |0.000%  |0.000%  |
+|TAM C. Christi  |7.560%  |1.540%  |0.180%  |0.020%  |0.000%  |0.000%  |
+|TX Southern     |7.560%  |1.540%  |0.180%  |0.020%  |0.000%  |0.000%  |
+|Bryant          |7.020%  |1.940%  |0.180%  |0.000%  |0.000%  |0.000%  |
+|Wright St       |7.020%  |1.940%  |0.180%  |0.000%  |0.000%  |0.000%  |
+|St Peter's      |6.680%  |1.100%  |0.120%  |0.000%  |0.000%  |0.000%  |
+|Delaware        |6.500%  |1.100%  |0.100%  |0.000%  |0.000%  |0.000%  |
+|Georgia St      |2.580%  |0.420%  |0.040%  |0.000%  |0.000%  |0.000%  |
 
 =======
 
