@@ -147,7 +147,7 @@ get_win_prob("X02", "X15", region = "West", bracket_round = "Round 1")
 # Round of 32
 get_win_prob("X01", "X09", region = "West", bracket_round = "Round 2")
 get_win_prob("X04", "X12", region = "West", bracket_round = "Round 2")
-get_win_prob("X03", "X06", region = "West", bracket_round = "Round 2")
+get_win_prob("X03", "X11", region = "West", bracket_round = "Round 2")
 get_win_prob("X02", "X07", region = "West", bracket_round = "Round 2")
 
 # Sxeet 16
@@ -173,7 +173,7 @@ get_win_prob("Y02", "Y15", region = "Midwest", bracket_round = "Round 1")
 # Round of 32
 get_win_prob("Y01", "Y09", region = "Midwest", bracket_round = "Round 2")
 get_win_prob("Y04", "Y12", region = "Midwest", bracket_round = "Round 2")
-get_win_prob("Y06", "Y03", region = "Midwest", bracket_round = "Round 2")
+get_win_prob("Y11", "Y03", region = "Midwest", bracket_round = "Round 2")
 get_win_prob("Y10", "Y02", region = "Midwest", bracket_round = "Round 2")
 
 # Sweet 16
@@ -197,7 +197,7 @@ get_win_prob("Z07", "Z10", region = "South", bracket_round = "Round 1")
 get_win_prob("Z02", "Z15", region = "South", bracket_round = "Round 1")
 
 # Round of 32
-get_win_prob("Z01", "Z08", region = "South", bracket_round = "Round 2")
+get_win_prob("Z01", "Z09", region = "South", bracket_round = "Round 2")
 get_win_prob("Z04", "Z05", region = "South", bracket_round = "Round 2")
 get_win_prob("Z11", "Z03", region = "South", bracket_round = "Round 2")
 get_win_prob("Z07", "Z02", region = "South", bracket_round = "Round 2")
