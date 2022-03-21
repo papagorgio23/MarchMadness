@@ -102,7 +102,6 @@ get_win_prob <- function(
   return(win_prob)
 }
 
-rm(team2seed)
 
 ##### East games Round 1
 # Top Round of 64
@@ -124,11 +123,11 @@ get_win_prob("W06", "W03", region = "East", bracket_round = "Round 2")
 get_win_prob("W07", "W15", region = "East", bracket_round = "Round 2")
 
 # Sweet 16
-get_win_prob("W01", "W04", region = "East", bracket_round = "Sweet 16")
-get_win_prob("W07", "W06", region = "East", bracket_round = "Sweet 16")
+get_win_prob("W08", "W04", region = "East", bracket_round = "Sweet 16")
+get_win_prob("W15", "W03", region = "East", bracket_round = "Sweet 16")
 
 # Elite 8
-get_win_prob("W01", "W06", region = "East", bracket_round = "Elite 8")
+get_win_prob("W04", "W03", region = "East", bracket_round = "Elite 8")
 
 ##### X games WEST
 # Round 1
@@ -178,10 +177,10 @@ get_win_prob("Y10", "Y02", region = "Midwest", bracket_round = "Round 2")
 
 # Sweet 16
 get_win_prob("Y01", "Y04", region = "Midwest", bracket_round = "Sweet 16")
-get_win_prob("Y02", "Y03", region = "Midwest", bracket_round = "Sweet 16")
+get_win_prob("Y10", "Y11", region = "Midwest", bracket_round = "Sweet 16")
 
 # Elite 8
-get_win_prob("Y03", "Y01", region = "Midwest", bracket_round = "Elite 8")
+get_win_prob("Y11", "Y01", region = "Midwest", bracket_round = "Elite 8")
 
 ##### Z games Round 1 SOUTH
 # Top Round of 64
@@ -203,16 +202,16 @@ get_win_prob("Z11", "Z03", region = "South", bracket_round = "Round 2")
 get_win_prob("Z07", "Z02", region = "South", bracket_round = "Round 2")
 
 # Sweet 16
-get_win_prob("Z01", "Z04", region = "South", bracket_round = "Sweet 16")
-get_win_prob("Z02", "Z03", region = "South", bracket_round = "Sweet 16")
+get_win_prob("Z01", "Z05", region = "South", bracket_round = "Sweet 16")
+get_win_prob("Z02", "Z11", region = "South", bracket_round = "Sweet 16")
 
 # Elite 8
 get_win_prob("Z04", "Z02", region = "South", bracket_round = "Elite 8")
 
 ## Final Four!!! Game Time Baby!!!
 # Semi Finals
-get_win_prob("W01", "X01", region = "National", bracket_round = "Final 4")
-get_win_prob("Y05", "Z02", region = "National", bracket_round = "Final 4")
+get_win_prob("W03", "X01", region = "National", bracket_round = "Final 4")
+get_win_prob("Y01", "Z02", region = "National", bracket_round = "Final 4")
 
 # Championship Game
 get_win_prob("X01", "Z02", region = "National", bracket_round = "Elite 8")
